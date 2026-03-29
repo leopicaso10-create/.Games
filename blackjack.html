@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Nova Consilia Blackjack</title>
+<style>
+body{
+    margin:0;
+    font-family:Arial;
+    background: radial-gradient(circle,#0f5132,#031d12);
+    color:white;
+    text-align:center;
+}
+header{
+    font-size:36px;
+    font-weight:bold;
+    color:#ff4fd8;
+    padding:20px;
+}
+#table{max-width:900px;margin:auto;padding:20px;}
+.hand{
+    display:flex;
+    justify-content:center;
+    gap:10px;
+    flex-wrap:wrap;
+    margin:15px;
+}
+.card{
+    width:70px;
+    height:100px;
+    border-radius:8px;
+    background:white;
+    color:black;
+    font-weight:bold;
+    font-size:22px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    box-shadow:0 4px 10px rgba(0,0,0,.5);
+}
+.card.red{color:red;}
+button{
+    padding:10px 18px;
+    margin:5px;
+    font-size:16px;
+    border:none;
+    border-radius:6px;
+    cursor:pointer;
+}
+#chips button{
+    border-radius:50%;
+    width:60px;
+    height:60px;
+    font-weight:bold;
+    font-size:14px;
+}
+.chip10{background:#3498db}
+.chip50{background:#9b59b6}
+.chip100{background:#e74c3c}
+.chip500{background:#f1c40f;color:black}
+#message{font-size:20px;margin:10px;height:25px;}
+@media(max-width:600px){
+.card{width:55px;height:80px;font-size:18px;}
+}
+</style>
+</head>
+<body>
+
+<header>Nova Consilia GAMES</header>
+
+<div id="table">
+<h2>Balance: $<span id="balance">1000</span></h2>
+<h3>Current Bet: $<span id="bet">0</span></h3>
+
+<div id="chips">
+<button class="chip10" onclick="addBet(10)">10</button>
+<button class="chip50" onclick="addBet(50)">50</button>
+<button class="chip100" onclick="addBet(100)">100</button>
+<button class="chip500" onclick="addBet(500)">500</button>
+</div>
+<br>
+<button onclick="deal()">Deal</button>
+<button onclick="clearBet()">Clear Bet</button>
+
+<h2>Dealer</h2>
+<div class="hand" id="dealer"></div>
+<div>Value: <span id="dealerVal">0</span></div>
+
+<h2>Player</h2>
+<div class="hand" id="player"></div>
+<div>Value: <span id="playerVal">0</span></div>
+
+<div>
+<button onclick="hit()">Hit</button>
+<button onclick="stand()">Stand</button>
+</div>
+
+<div id="message"></div>
+
+<audio id="dealSound" src="https://assets.mixkit.co/active_storage/sfx/2057/2057-preview.mp3"></audio>
+<audio id="winSound" src="https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3"></audio>
+<audio id="loseSound" src="https://assets.mixkit.co/active_storage/sfx/2018/2018-preview.mp3"></audio>
+
+<script>
+let suits=["♠","♥","♦","♣"];
+let values=["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
+let deck=[], player=[], dealer=[];
+let balance=1000, bet=0, active=false;
+
+function buildDeck(){
+    deck=[];
+    for(let s of suits){
+        for(let v of values){
+            deck.push(v+s);
+        }
+    }
+    deck.sort(()=>Math.random()-0.5);
+}
+
+function cardValue(card){
+    let v=card.slice(0,-1);
+    if(v=="A") return 11;
+    if(["K","Q","J"].includes(v)) return 10;
+    return parseInt(v);
+}
+
+function total(hand){
+    let t=0, aces=0;
+    for(let c of hand){
+        t+=cardValue(c);
+        if(c.startsWith("A")) aces++;
+    }
+    while(t>21 && aces>0){t-=10; aces--;}
+    return t;
+}
+
+function drawCard(container, card){
+    let div=document.createElement("div");
+    div.className="card";
+    div.innerText=card;
+    if(card.includes("♥") || card.includes("♦")) div.classList.add("red");
+    container.appendChild(div);
+}
+
+function update(){
+    let p=document.getElementById("player"), d=document.getElementById("dealer");
+    p.innerHTML=""; d.innerHTML="";
+    player.forEach(c=>drawCard(p,c));
+    dealer.forEach(c=>drawCard(d,c));
+    document.getElementById("playerVal").innerText=total(player);
+    document.getElementById("dealerVal").innerText=total(dealer);
+    document.getElementById("balance").innerText=balance;
+    document.getElementById("bet").innerText=bet;
+}
+
+function addBet(amount){if(active) return; if(balance>=amount){bet+=amount; balance-=amount; update();}}
+function clearBet(){if(active) return; balance+=bet; bet=0; update();}
+
+function deal(){
+    if(bet==0 || active) return;
+    buildDeck(); player=[]; dealer=[];
+    player.push(deck.pop(), deck.pop());
+    dealer.push(deck.pop(), deck.pop());
+    active=true;
+    document.getElementById("message").innerText="";
+    document.getElementById("dealSound").play();
+    update();
+}
+
+function hit(){if(!active) return; player.push(deck.pop()); update(); if(total(player)>21) endGame();}
+
+function stand(){if(!active) return;
+    while(total(dealer)<17 || (total(dealer)==17 && dealer.some(c=>c.startsWith("A") && total(dealer)<=17))){
+        dealer.push(deck.pop());
+    }
+    endGame();
+}
+
+function endGame(){
+    active=false;
+    let p=total(player), d=total(dealer), msg="";
+    if(p>21){msg="Bust! Dealer wins."; document.getElementById("loseSound").play();}
+    else if(d>21 || p>d){msg="You Win!"; balance+=bet*2; document.getElementById("winSound").play();}
+    else if(p==d){msg="Push"; balance+=bet;}
+    else{msg="Dealer Wins."; document.getElementById("loseSound").play();}
+    bet=0;
+    document.getElementById("message").innerText=msg;
+    update();
+}
+
+update();
+</script>
+</body>
+</html>

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Nova Consilia</title>
+
+<style>
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: linear-gradient(to bottom, #0f172a, #020617);
+  color: white;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+
+body.loaded {
+  opacity: 1;
+}
+
+/* HEADER */
+header {
+  text-align: center;
+  padding: 40px 20px 10px;
+}
+
+header h1 {
+  font-size: 42px;
+  margin: 0;
+}
+
+header p {
+  color: #94a3b8;
+}
+
+/* LIVE COUNTER */
+.counter {
+  margin-top: 10px;
+  font-size: 14px;
+  color: #38bdf8;
+}
+
+/* CONTAINER */
+.container {
+  max-width: 1100px;
+  margin: auto;
+  padding: 20px;
+}
+
+/* TOP AD */
+.top-ad {
+  margin-bottom: 25px;
+  padding: 15px;
+  text-align: center;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.04);
+}
+
+/* GRID */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+}
+
+/* CARD */
+.card {
+  position: relative;
+  background: rgba(255,255,255,0.05);
+  padding: 20px;
+  border-radius: 16px;
+  transition: 0.3s;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+/* GLOW FIXED */
+.card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent, rgba(56,189,248,0.4), transparent);
+  opacity: 0;
+  transition: 0.4s;
+  pointer-events: none; /* 🔥 THIS FIXES BUTTONS */
+}
+
+.card:hover::before {
+  opacity: 1;
+}
+
+.card:hover {
+  transform: translateY(-6px) scale(1.02);
+  box-shadow: 0 0 25px rgba(56,189,248,0.2);
+}
+
+/* BUTTON */
+button {
+  margin-top: 15px;
+  width: 100%;
+  padding: 10px;
+  border-radius: 10px;
+  border: none;
+  background: #38bdf8;
+  color: black;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #0ea5e9;
+  box-shadow: 0 0 15px rgba(56,189,248,0.6);
+}
+
+/* ADS */
+.ads {
+  display: flex;
+  gap: 20px;
+  margin-top: 40px;
+}
+
+.ad-box {
+  flex: 1;
+  background: rgba(255,255,255,0.04);
+  padding: 20px;
+  border-radius: 14px;
+  text-align: center;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>Nova Consilia 🎮</h1>
+  <p>Simple. Clean. Addictive games.</p>
+  <div class="counter" id="playerCount">Loading players...</div>
+</header>
+
+<div class="container">
+
+  <div class="top-ad">Ad Space</div>
+
+  <div class="grid">
+
+    <div class="card">
+      <h2>Plinko</h2>
+      <button onclick="navigate('plinko.html')">Play</button>
+    </div>
+
+    <div class="card">
+      <h2>Blackjack</h2>
+      <button onclick="navigate('blackjack.html')">Play</button>
+    </div>
+
+    <div class="card">
+      <h2>Mines</h2>
+      <button onclick="navigate('mines.html')">Play</button>
+    </div>
+
+    <div class="card">
+      <h2>Laser</h2>
+      <button onclick="navigate('laser.html')">Play</button>
+    </div>
+
+    <div class="card">
+      <h2>Fish</h2>
+      <button onclick="navigate('fish.html')">Play</button>
+    </div>
+
+    <div class="card">
+      <h2>Ant</h2>
+      <button onclick="navigate('ant.html')">Play</button>
+    </div>
+
+  </div>
+
+  <div class="ads">
+    <div class="ad-box">Ad Space</div>
+    <div class="ad-box">Ad Space</div>
+  </div>
+
+</div>
+
+<script>
+/* FADE IN */
+window.onload = () => {
+  document.body.classList.add("loaded");
+};
+
+/* NAVIGATION */
+function navigate(page) {
+  document.body.style.opacity = 0;
+  setTimeout(() => {
+    window.location.href = page;
+  }, 400);
+}
+
+/* FAKE LIVE PLAYER COUNTER */
+function updatePlayers() {
+  let players = Math.floor(Math.random() * 500) + 120; 
+  document.getElementById("playerCount").innerText =
+    players + " players online";
+}
+
+/* Update every 3 seconds */
+setInterval(updatePlayers, 3000);
+updatePlayers();
+</script>
+
+</body>
+</html>

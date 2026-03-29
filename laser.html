@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Neon Retro Shooter</title>
+<style>
+  body {
+    margin: 0;
+    background: radial-gradient(circle at center, #0a0a0f, #000);
+    color: #0ff;
+    font-family: "Orbitron", sans-serif;
+    overflow: hidden;
+  }
+  #gameCanvas {
+    display: block;
+    margin: 0 auto;
+    background: rgba(0,0,0,0.6);
+    border: 3px solid #0ff;
+    box-shadow: 0 0 25px #0ff;
+  }
+  #info {
+    text-align: center;
+    margin-top: 10px;
+    font-size: 16px;
+    text-shadow: 0 0 8px #0ff;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="gameCanvas" width="900" height="600"></canvas>
+
+<div id="info">
+  Move: <b>← / →</b> &nbsp;|&nbsp;
+  Shoot: <b>Space</b> &nbsp;|&nbsp;
+  Reload: <b>R</b><br>
+  <span id="scoreText">Score: 0</span> &nbsp;|&nbsp;
+  <span id="livesText">Lives: 3</span> &nbsp;|&nbsp;
+  <span id="ammoText">Ammo: 10 / 10</span>
+</div>
+
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+
+const W = canvas.width;
+const H = canvas.height;
+
+// Retro neon laser sound
+const sndShoot = new Audio("data:audio/wav;base64,UklGRoQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YYQAAAAA/////wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A");
+const sndHit = new Audio("data:audio/wav;base64,UklGRoQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YYQAAAAA////AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A");
+const sndHurt = new Audio("data:audio/wav;base64,UklGRoQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YYQAAAAA/wD/AP8A////AP///wD///8A////AP///wD///8A////AP///w");
+
+// Player
+const player = {
+  x: W / 2,
+  y: H - 60,
+  w: 55,
+  h: 28,
+  speed: 7,
+  color: "#0ff"
+};
+
+// Game state
+let bullets = [];
+let enemies = [];
+let keys = {};
+let score = 0;
+let lives = 3;
+
+// Shooting
+let shootCooldown = 150;
+let lastShotTime = 0;
+let maxAmmo = 10;
+let ammo = maxAmmo;
+let reloading = false;
+let reloadTime = 1200;
+
+// Enemy spawn
+let lastEnemySpawn = 0;
+let enemySpawnInterval = 650;
+
+// Input
+window.addEventListener("keydown", e => {
+  keys[e.code] = true;
+  if (e.code === "Space") e.preventDefault();
+  if (e.code === "KeyR") startReload();
+});
+window.addEventListener("keyup", e => keys[e.code] = false);
+
+function startReload() {
+  if (reloading || ammo === maxAmmo) return;
+  reloading = true;
+  setTimeout(() => {
+    ammo = maxAmmo;
+    reloading = false;
+    updateHUD();
+  }, reloadTime);
+}
+
+function shoot(timestamp) {
+  if (reloading || ammo <= 0) return;
+  if (timestamp - lastShotTime < shootCooldown) return;
+
+  bullets.push({
+    x: player.x,
+    y: player.y - player.h / 2,
+    r: 4,
+    speed: 10,
+    color: "#0ff",
+    glow: "#0ff"
+  });
+
+  sndShoot.currentTime = 0;
+  sndShoot.play();
+
+  ammo--;
+  lastShotTime = timestamp;
+  updateHUD();
+}
+
+function spawnEnemy(timestamp) {
+  if (timestamp - lastEnemySpawn < enemySpawnInterval) return;
+  lastEnemySpawn = timestamp;
+
+  const size = 25 + Math.random() * 30;
+  enemies.push({
+    x: Math.random() * (W - size) + size / 2,
+    y: -size,
+    w: size,
+    h: size,
+    speed: 1.5 + Math.random() * 2.5,
+    color: "#f0f",
+    glow: "#f0f"
+  });
+}
+
+function updateHUD() {
+  document.getElementById("scoreText").textContent = "Score: " + score;
+  document.getElementById("livesText").textContent = "Lives: " + lives;
+  document.getElementById("ammoText").textContent =
+    "Ammo: " + ammo + " / " + maxAmmo + (reloading ? " (reloading...)" : "");
+}
+
+function update(timestamp) {
+  // Movement
+  if (keys["ArrowLeft"]) player.x -= player.speed;
+  if (keys["ArrowRight"]) player.x += player.speed;
+  player.x = Math.max(player.w / 2, Math.min(W - player.w / 2, player.x));
+
+  // Shooting
+  if (keys["Space"]) shoot(timestamp);
+
+  // Spawn enemies
+  spawnEnemy(timestamp);
+
+  // Bullets
+  bullets = bullets.filter(b => b.y + b.r > 0);
+  bullets.forEach(b => b.y -= b.speed);
+
+  // Enemies
+  enemies.forEach(e => e.y += e.speed);
+
+  // Missed enemies
+  enemies = enemies.filter(e => {
+    if (e.y - e.h / 2 > H) {
+      lives--;
+      sndHurt.currentTime = 0;
+      sndHurt.play();
+      updateHUD();
+      return false;
+    }
+    return true;
+  });
+
+  // Bullet hits
+  bullets.forEach((b, bi) => {
+    enemies.forEach((e, ei) => {
+      if (
+        b.x > e.x - e.w / 2 &&
+        b.x < e.x + e.w / 2 &&
+        b.y > e.y - e.h / 2 &&
+        b.y < e.y + e.h / 2
+      ) {
+        bullets.splice(bi, 1);
+        enemies.splice(ei, 1);
+        score += 10;
+        sndHit.currentTime = 0;
+        sndHit.play();
+        updateHUD();
+      }
+    });
+  });
+
+  // Player collision
+  enemies.forEach((e, ei) => {
+    if (
+      player.x + player.w / 2 > e.x - e.w / 2 &&
+      player.x - player.w / 2 < e.x + e.w / 2 &&
+      player.y + player.h / 2 > e.y - e.h / 2 &&
+      player.y - player.h / 2 < e.y + e.h / 2
+    ) {
+      enemies.splice(ei, 1);
+      lives--;
+      sndHurt.currentTime = 0;
+      sndHurt.play();
+      updateHUD();
+    }
+  });
+
+  if (lives <= 0) return gameOver();
+
+  draw();
+  requestAnimationFrame(update);
+}
+
+function drawGlowRect(x, y, w, h, color, glow) {
+  ctx.shadowBlur = 20;
+  ctx.shadowColor = glow;
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, w, h);
+  ctx.shadowBlur = 0;
+}
+
+function drawGlowCircle(x, y, r, color, glow) {
+  ctx.shadowBlur = 20;
+  ctx.shadowColor = glow;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+
+  // Player
+  drawGlowRect(player.x - player.w / 2, player.y - player.h / 2, player.w, player.h, player.color, "#0ff");
+
+  // Bullets
+  bullets.forEach(b => drawGlowCircle(b.x, b.y, b.r, b.color, b.glow));
+
+  // Enemies
+  enemies.forEach(e => drawGlowRect(e.x - e.w / 2, e.y - e.h / 2, e.w, e.h, e.color, e.glow));
+}
+
+function gameOver() {
+  ctx.fillStyle = "rgba(0,0,0,0.7)";
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = "#0ff";
+  ctx.font = "42px Orbitron";
+  ctx.textAlign = "center";
+  ctx.shadowBlur = 20;
+  ctx.shadowColor = "#0ff";
+  ctx.fillText("GAME OVER", W / 2, H / 2 - 20);
+  ctx.font = "24px Orbitron";
+  ctx.fillText("Final Score: " + score, W / 2, H / 2 + 20);
+  ctx.fillText("Refresh to play again", W / 2, H / 2 + 60);
+  ctx.shadowBlur = 0;
+}
+
+updateHUD();
+requestAnimationFrame(update);
+</script>
+
+</body>
+</html>

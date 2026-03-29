@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ant Sovereign: War Map</title>
+    <style>
+        body {
+            margin: 0;
+            background: #2b1d10;
+            color: #f5e6be;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #header { background: #3d2b1f; width: 100%; text-align: center; padding: 10px; border-bottom: 3px solid #5d4037; }
+        #game-container { display: flex; width: 100%; max-width: 1200px; flex: 1; overflow: hidden; }
+        
+        .panel { flex: 1; padding: 20px; border-right: 1px solid #5d4037; overflow-y: auto; background: rgba(0,0,0,0.1); }
+        .center-panel { flex: 1.2; text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+
+        .click-ant {
+            font-size: 80px;
+            cursor: pointer;
+            user-select: none;
+            transition: transform 0.1s;
+            filter: drop-shadow(0 0 10px #8d6e63);
+        }
+        .click-ant:active { transform: scale(0.9); }
+
+        /* War Map Styles */
+        #war-map {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .enemy-card {
+            background: #4e342e;
+            padding: 10px;
+            border-radius: 8px;
+            border: 2px solid #5d4037;
+            text-align: left;
+        }
+        .enemy-card h4 { margin: 0 0 5px 0; color: #ffab91; }
+        .enemy-card p { margin: 2px 0; font-size: 0.85rem; }
+
+        .stat-box { font-size: 1.1rem; margin: 10px 0; background: #3d2b1f; padding: 10px; border-radius: 8px; width: 80%; }
+        
+        button {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            background: #8d6e63;
+            border: none;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        button:hover:not(:disabled) { background: #a1887f; }
+        button:disabled { background: #33221a; color: #555; cursor: not-allowed; }
+        
+        .invade-btn { background: #ae2012; margin-top: 5px; }
+        .invade-btn:hover:not(:disabled) { background: #d00000; }
+
+        .war-log { font-size: 0.85rem; color: #ffab91; height: 120px; overflow-y: auto; border: 1px solid #5d4037; padding: 5px; margin-top: 10px; background: #1a1108; }
+    </style>
+</head>
+<body>
+
+    <div id="header">
+        <h1>ANT SOVEREIGN</h1>
+        <div id="resource-bar">
+            Food: <span id="food">0</span> | Workers: <span id="worker-count">0</span> | Soldiers: <span id="soldier-count">0</span>
+        </div>
+    </div>
+
+    <div id="game-container">
+        <div class="panel">
+            <h3>Colony Nursery</h3>
+            <button id="buyWorker">Birth Worker (Cost: 10)</button>
+            <button id="buySoldier">Train Soldier (Cost: 50)</button>
+            <button id="upgradeClick">Sharper Mandibles (Cost: 100)</button>
+            <hr style="border-color: #5d4037">
+            <p><small>Total Production Bonus: <span id="total-bonus">0</span>%</small></p>
+        </div>
+
+        <div class="center-panel">
+            <div class="click-ant" onclick="game.clickAnt()">🐜</div>
+            <div class="stat-box">Gathering: <span id="fps">0</span> /sec</div>
+            <div style="color: #8d6e63;">Global Threat Level: <span id="threat">1</span></div>
+        </div>
+
+        <div class="panel">
+            <h3>War Map</h3>
+            <div id="war-map">
+                </div>
+            <div class="war-log" id="war-log">Intelligence: Select a target to invade.</div>
+        </div>
+    </div>
+
+<script>
+    const game = {
+        food: 0,
+        clickPower: 1,
+        workers: 0,
+        soldiers: 0,
+        globalThreat: 1,
+        totalBonus: 0,
+        
+        costs: { worker: 10, soldier: 50, click: 100 },
+
+        targets: [
+            { id: 0, name: "Scout Outpost", type: "Small", powerMult: 8, reward: 0.05 },
+            { id: 1, name: "Territorial Mound", type: "Medium", powerMult: 25, reward: 0.15 },
+            { id: 2, name: "Great Empire", type: "Large", powerMult: 75, reward: 0.40 }
+        ],
+
+        clickAnt() {
+            this.food += this.clickPower;
+            this.updateDisplay();
+        },
+
+        buy(type) {
+            if (this.food >= this.costs[type]) {
+                this.food -= this.costs[type];
+                if (type === 'worker') {
+                    this.workers++;
+                    this.costs.worker = Math.floor(this.costs.worker * 1.15);
+                } else if (type === 'soldier') {
+                    this.soldiers++;
+                    this.costs.soldier = Math.floor(this.costs.soldier * 1.25);
+                } else if (type === 'click') {
+                    this.clickPower *= 2;
+                    this.costs.click *= 8;
+                }
+                this.updateDisplay();
+            }
+        },
+
+        invade(targetId) {
+            const target = this.targets[targetId];
+            const enemyPower = Math.floor(target.powerMult * Math.pow(this.globalThreat, 1.4));
+            
+            if (this.soldiers >= enemyPower) {
+                // VICTORY
+                const losses = Math.floor(enemyPower * 0.5);
+                this.soldiers -= losses;
+                this.totalBonus += target.reward;
+                this.globalThreat++;
+                this.log(`VICTORY! ${target.name} fallen. +${(target.reward*100).toFixed(0)}% boost. Lost ${losses} soldiers.`);
+            } else {
+                // DEFEAT
+                const losses = Math.floor(this.soldiers * 0.8);
+                this.soldiers -= losses;
+                this.log(`DEFEAT! Our army was crushed by ${target.name}. ${losses} soldiers died.`);
+            }
+            this.updateDisplay();
+        },
+
+        log(msg) {
+            const logEl = document.getElementById('war-log');
+            logEl.innerHTML = `> ${msg}<br>${logEl.innerHTML}`;
+        },
+
+        updateDisplay() {
+            document.getElementById('food').innerText = Math.floor(this.food);
+            document.getElementById('worker-count').innerText = this.workers;
+            document.getElementById('soldier-count').innerText = this.soldiers;
+            document.getElementById('total-bonus').innerText = (this.totalBonus * 100).toFixed(0);
+            document.getElementById('threat').innerText = this.globalThreat;
+            
+            const fps = (this.workers * (1 + this.totalBonus)).toFixed(1);
+            document.getElementById('fps').innerText = fps;
+
+            document.getElementById('buyWorker').innerText = `Birth Worker (${this.costs.worker})`;
+            document.getElementById('buySoldier').innerText = `Train Soldier (${this.costs.soldier})`;
+            document.getElementById('upgradeClick').innerText = `Better Mandibles (${this.costs.click})`;
+
+            // Update Map
+            const mapHtml = this.targets.map(t => {
+                const pwr = Math.floor(t.powerMult * Math.pow(this.globalThreat, 1.4));
+                const canWin = this.soldiers >= pwr;
+                return `
+                    <div class="enemy-card">
+                        <h4>${t.name} (${t.type})</h4>
+                        <p>Defense: ${pwr}</p>
+                        <p>Reward: +${(t.reward*100).toFixed(0)}% Prod</p>
+                        <button class="invade-btn" onclick="game.invade(${t.id})" ${this.soldiers === 0 ? 'disabled' : ''}>
+                            ${canWin ? 'INVADE' : 'RISKY ATTACK'}
+                        </button>
+                    </div>
+                `;
+            }).join('');
+            document.getElementById('war-map').innerHTML = mapHtml;
+        },
+
+        loop() {
+            let income = (this.workers * (1 + this.totalBonus)) / 10;
+            this.food += income;
+            this.updateDisplay();
+        }
+    };
+
+    setInterval(() => game.loop(), 100);
+    document.getElementById('buyWorker').onclick = () => game.buy('worker');
+    document.getElementById('buySoldier').onclick = () => game.buy('soldier');
+    document.getElementById('upgradeClick').onclick = () => game.buy('click');
+    game.updateDisplay();
+</script>
+</body>
+</html>
+
+
